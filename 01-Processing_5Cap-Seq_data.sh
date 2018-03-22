@@ -37,5 +37,25 @@ for file in *bg.gz; do echo $file && zcat $file | awk '{if ($4>1) print $0}' > $
 # Ensure that all positions have 1 bp width:
 python3 Expand_bedGraph_to_single_base_resolution.py .
 
-# Convert Bedgraph files to Bigwig (requires kentUtils):
+# Convert expanded Bedgraph files to Bigwig (requires kentUtils). These Bigwigs will be used as input for CAGEfightR:
 for file in *cov2.bg; do echo $file && bedGraphToBigWig $file TAIR10.chrom.sizes ${file/bg/bw}; done
+
+# Also make Bedgraph files for visualization in genomic browsers. # First, merge forward and reverse Bedgraph files corresponding to the same sample:
+for file1 in *fw.bg; do
+  file2=${file1/fw/rev}
+  outfile=${file1/fw.bg/fw_rev.bg.gz}
+  echo $file1 "+" $file2 "=" $outfile
+  awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"-"$4}' $file2 | \
+cat $file1 - | sort -k1,1 -k2,2n | sed '1i track type=bedGraph \
+color=0,100,200 altColor=200,100,0' | gzip > $outfile
+done
+
+# Then normalize the merged Bedgraph files to 1M tags:
+for file in *fw_rev.bg.gz; do
+  norm=$( zcat $file | sed '/^[#t]/d' | awk 'BEGIN{SUM=0}\
+{SUM+=sqrt($4^2)*($3-$2)}END{print SUM / 1000000}' )
+  echo $file $norm
+  zcat $file | awk -v norm=$norm 'BEGIN{OFS="\t"}\
+{if ($0~/^[#t]/) print $0; else print $1, $2, $3, $4 / norm}' | \
+gzip > ${file/.bg.gz/_norm1M.bg.gz}
+done
