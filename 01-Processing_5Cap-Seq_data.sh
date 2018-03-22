@@ -1,5 +1,3 @@
-# DETAILS ABOUT THE LIB PREP PROTOCOL!
-
 # Quality and adapter trimming (observe the custom adapter sequence):
 for file in *fastq.gz; do echo $file && trim_galore --adapter "ATCTCGTATGCCG" $file; done
 
